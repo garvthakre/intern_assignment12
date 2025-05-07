@@ -11,7 +11,13 @@ import groupRoutes from './routes/group.routes.js';
 import swaggerUi from 'swagger-ui-express';
 import swaggerDoc from './docs/swagger.js';
 import { initSocket } from './socket/socket.js';
-
+import { seedAdmin } from './seeders/admin.seeder.js';
+import adminRoutes from './routes/admin.routes.js';
+import { validate, registerValidation, loginValidation } from './middlewares/validation.middleware.js';
+import { logger } from './services/logger.service.js';
+import { authLimiter, apiLimiter } from './middlewares/rate-limit.middleware.js';
+import userSwaggerSpec from './docs/swagger-user.js';
+import adminSwaggerSpec from './docs/swagger-admin.js';
 // Load environment variables
 dotenv.config();
 
@@ -30,26 +36,30 @@ app.use(morgan('dev'));
 
 // Debug middleware for auth headers
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
-  if (req.headers.authorization) {
-    console.log('Authorization header present');
-  }
-  next();
-});
+    logger.info(`${req.method} ${req.path}`);
+    if (req.headers.authorization) {
+      logger.debug('Authorization header present');
+    }
+    next();
+  });
 
 // Welcome route
 app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
-// Routes
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter);
+
+// Update routes with validation
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/admin', adminRoutes);
 
-// Swagger documentation
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
-
+// Update Swagger docs
+app.use('/api/docs/user', swaggerUi.serve, swaggerUi.setup(userSwaggerSpec));
+app.use('/api/docs/admin', swaggerUi.serve, swaggerUi.setup(adminSwaggerSpec));
 // Create HTTP server
 const server = http.createServer(app);
 

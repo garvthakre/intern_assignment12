@@ -2,10 +2,14 @@ import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
   name: String,
+  firstName: String,
   email: { type: String, unique: true },
+  country: String,
   password: String,
   role: { type: String, default: 'user' },
-  isVerified: { type: Boolean, default: false }
+  emailVerificationToken: String,
+  emailVerified: { type: Boolean, default: false },
+  verificationTokenExpiry: Date
 });
 
 export default mongoose.model('User', userSchema);
