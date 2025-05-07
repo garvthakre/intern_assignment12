@@ -1,0 +1,41 @@
+# Node.js dependencies
+/node_modules/
+
+# Environment variables
+.env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+# Mongoose data files
+*.mongodb
+*.db
+
+# Swagger generated files
+/docs/swagger.json
+
+# VSCode settings
+.vscode/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Build files (if any)
+dist/
+build/
+
+# Package-lock file (if you prefer not to include it)
+package-lock.json
