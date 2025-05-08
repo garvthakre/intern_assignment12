@@ -16,7 +16,7 @@ import { seedAdmin } from './seeders/admin.seeder.js';
 import adminRoutes from './routes/admin.routes.js';
 import { validate, registerValidation, loginValidation } from './middlewares/validation.middleware.js';
 import { logger } from './services/logger.service.js';
-import { authLimiter, apiLimiter } from './middlewares/rate-limit.middleware.js';
+import { authLimiter, apiLimiter } from './middlewares/rate-Limit.middleware.js';
 import userSwaggerSpec from './docs/swagger-user.js';
 import adminSwaggerSpec from './docs/swagger-admin.js';
 // Load environment variables
