@@ -1,409 +1,337 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Test Client</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1 {
-            color: #333;
-        }
-        .container {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .panel {
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 15px;
-        }
-        .message-container {
-            height: 300px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-top: 10px;
-            background-color: #f9f9f9;
-        }
-        .message {
-            margin-bottom: 8px;
-            padding: 8px;
-            border-radius: 4px;
-        }
-        .received {
-            background-color: #e3f2fd;
-        }
-        .sent {
-            background-color: #e8f5e9;
-            text-align: right;
-        }
-        input, select, button, textarea {
-            padding: 8px;
-            margin: 5px 0;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .input-group {
-            display: flex;
-            margin-bottom: 10px;
-        }
-        .input-group input {
-            flex-grow: 1;
-            margin-right: 10px;
-        }
-        .status {
-            padding: 10px;
-            margin-top: 10px;
-            border-radius: 4px;
-        }
-        .connected {
-            background-color: #dff0d8;
-            color: #3c763d;
-        }
-        .disconnected {
-            background-color: #f2dede;
-            color: #a94442;
-        }
-        textarea {
-            width: 100%;
-            height: 80px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebSocket Test Client</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.1/socket.io.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .panel {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+    .log-container {
+      flex-grow: 1;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 15px;
+      overflow-y: auto;
+      background-color: #f8f8f8;
+      height: 300px;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input, textarea, button {
+      margin-bottom: 10px;
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .group-members {
+      margin-top: 10px;
+      border-top: 1px solid #ddd;
+      padding-top: 10px;
+    }
+    .log-entry {
+      margin-bottom: 8px;
+      padding: 8px;
+      border-radius: 4px;
+    }
+    .log-info {
+      background-color: #e1f5fe;
+    }
+    .log-error {
+      background-color: #ffebee;
+    }
+    .log-success {
+      background-color: #e8f5e9;
+    }
+    .log-message {
+      background-color: #fff8e1;
+    }
+    .tab-container {
+      border-bottom: 1px solid #ccc;
+      margin-bottom: 15px;
+    }
+    .tab {
+      display: inline-block;
+      padding: 10px 20px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+      margin-right: 5px;
+      background-color: #f1f1f1;
+    }
+    .tab.active {
+      background-color: white;
+      border-bottom: 1px solid white;
+      margin-bottom: -1px;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+  </style>
 </head>
 <body>
+  <div class="container">
     <h1>WebSocket Test Client</h1>
     
-    <div class="container">
-        <div class="panel">
-            <h2>Connection</h2>
-            <div class="input-group">
-                <input type="text" id="server-url" value="ws://localhost:5000" placeholder="WebSocket Server URL">
-                <input type="text" id="auth-token" placeholder="JWT Token">
-                <button id="connect-btn">Connect</button>
-                <button id="disconnect-btn" disabled>Disconnect</button>
-            </div>
-            <div id="connection-status" class="status disconnected">Disconnected</div>
-        </div>
-        
-        <div class="panel">
-            <h2>Private Messaging</h2>
-            <input type="text" id="recipient-id" placeholder="Recipient User ID">
-            <textarea id="private-message" placeholder="Type private message..."></textarea>
-            <button id="send-private-btn" disabled>Send Private Message</button>
-            
-            <h3>Messages</h3>
-            <div id="private-messages" class="message-container"></div>
-        </div>
-        
-        <div class="panel">
-            <h2>Group Messaging</h2>
-            <div class="input-group">
-                <input type="text" id="group-id" placeholder="Group ID">
-                <button id="join-group-btn" disabled>Join Group</button>
-                <button id="leave-group-btn" disabled>Leave Group</button>
-            </div>
-            <textarea id="group-message" placeholder="Type group message..."></textarea>
-            <button id="send-group-btn" disabled>Send Group Message</button>
-            
-            <h3>Group Messages</h3>
-            <div id="group-messages" class="message-container"></div>
-        </div>
+    <div class="panel">
+      <h2>Connect to WebSocket</h2>
+      <label for="serverUrl">Server URL:</label>
+      <input type="text" id="serverUrl" value="http://localhost:5000" />
+      
+      <label for="token">JWT Token:</label>
+      <input type="text" id="token" placeholder="Paste your JWT token here" />
+      
+      <button id="connectBtn">Connect</button>
+      <button id="disconnectBtn" disabled>Disconnect</button>
     </div>
 
-    <script>
-        let socket = null;
-        let currentUserId = null;
-        let currentGroupId = null;
+    <div class="tab-container">
+      <div class="tab active" data-tab="private">Private Messages</div>
+      <div class="tab" data-tab="group">Group Management</div>
+    </div>
+    
+    <div id="privateTab" class="tab-content active">
+      <div class="panel">
+        <h2>Send Private Message</h2>
+        <label for="recipientId">Recipient User ID:</label>
+        <input type="text" id="recipientId" placeholder="User ID to send message to" />
         
-        // Connection elements
-        const serverUrlInput = document.getElementById('server-url');
-        const authTokenInput = document.getElementById('auth-token');
-        const connectBtn = document.getElementById('connect-btn');
-        const disconnectBtn = document.getElementById('disconnect-btn');
-        const connectionStatus = document.getElementById('connection-status');
+        <label for="privateMessage">Message:</label>
+        <textarea id="privateMessage" rows="3" placeholder="Type your message here"></textarea>
         
-        // Private messaging elements
-        const recipientIdInput = document.getElementById('recipient-id');
-        const privateMessageInput = document.getElementById('private-message');
-        const sendPrivateBtn = document.getElementById('send-private-btn');
-        const privateMessagesContainer = document.getElementById('private-messages');
+        <button id="sendPrivateBtn" disabled>Send Private Message</button>
+      </div>
+    </div>
+    
+    <div id="groupTab" class="tab-content">
+      <div class="panel">
+        <h2>Group Management</h2>
+        <label for="groupId">Group ID:</label>
+        <input type="text" id="groupId" placeholder="Enter group ID" />
         
-        // Group messaging elements
-        const groupIdInput = document.getElementById('group-id');
-        const joinGroupBtn = document.getElementById('join-group-btn');
-        const leaveGroupBtn = document.getElementById('leave-group-btn');
-        const groupMessageInput = document.getElementById('group-message');
-        const sendGroupBtn = document.getElementById('send-group-btn');
-        const groupMessagesContainer = document.getElementById('group-messages');
+        <button id="joinGroupBtn" disabled>Join Group</button>
+        <button id="leaveGroupBtn" disabled>Leave Group</button>
         
-        // Connect to WebSocket server
-        connectBtn.addEventListener('click', () => {
-            const serverUrl = serverUrlInput.value;
-            const token = authTokenInput.value;
-            
-            try {
-                // Construct the WebSocket URL with token as a query parameter
-                const wsUrl = token ? `${serverUrl}?token=${token}` : serverUrl;
-                
-                socket = new WebSocket(wsUrl);
-                
-                // Connection opened
-                socket.addEventListener('open', () => {
-                    // Send authentication message
-                    socket.send(JSON.stringify({
-                        type: 'authenticate',
-                        token: token
-                    }));
-                    
-                    // Update UI
-                    updateConnectionStatus(true);
-                });
-                
-                // Listen for messages
-                socket.addEventListener('message', (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleServerMessage(data);
-                    } catch (error) {
-                        console.error('Error parsing message:', error);
-                        addMessage(privateMessagesContainer, `Error parsing message: ${error.message}`, 'received');
-                    }
-                });
-                
-                // Connection closed
-                socket.addEventListener('close', () => {
-                    updateConnectionStatus(false);
-                    addMessage(privateMessagesContainer, 'Connection closed', 'received');
-                });
-                
-                // Connection error
-                socket.addEventListener('error', (event) => {
-                    console.error('WebSocket error:', event);
-                    updateConnectionStatus(false, 'Connection Error');
-                    addMessage(privateMessagesContainer, 'Connection error', 'received');
-                });
-                
-            } catch (error) {
-                alert('Connection failed: ' + error.message);
-                console.error('Connection error:', error);
-            }
+        <div class="group-members" id="groupMembers"></div>
+      </div>
+      
+      <div class="panel">
+        <h2>Send Group Message</h2>
+        <label for="messageGroupId">Group ID:</label>
+        <input type="text" id="messageGroupId" placeholder="Group ID to send message to" />
+        
+        <label for="groupMessage">Message:</label>
+        <textarea id="groupMessage" rows="3" placeholder="Type your group message here"></textarea>
+        
+        <button id="sendGroupBtn" disabled>Send Group Message</button>
+      </div>
+    </div>
+    
+    <h2>Event Log</h2>
+    <div class="log-container" id="log"></div>
+  </div>
+
+  <script>
+    let socket;
+    let userId;
+    
+    // DOM elements
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const sendPrivateBtn = document.getElementById('sendPrivateBtn');
+    const joinGroupBtn = document.getElementById('joinGroupBtn');
+    const leaveGroupBtn = document.getElementById('leaveGroupBtn');
+    const sendGroupBtn = document.getElementById('sendGroupBtn');
+    const log = document.getElementById('log');
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    // Tab switching
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        
+        tab.classList.add('active');
+        document.getElementById(`${tab.dataset.tab}Tab`).classList.add('active');
+      });
+    });
+    
+    // Connect to WebSocket
+    connectBtn.addEventListener('click', () => {
+      const serverUrl = document.getElementById('serverUrl').value.trim();
+      const token = document.getElementById('token').value.trim();
+      
+      if (!token) {
+        addLogEntry('Please enter a JWT token', 'error');
+        return;
+      }
+      
+      try {
+        socket = io(serverUrl, {
+          auth: { token },
+          transports: ['websocket']
         });
         
-        // Handle messages from server
-        function handleServerMessage(data) {
-            console.log('Received message:', data);
-            
-            switch (data.type) {
-                case 'auth_success':
-                    // Authentication successful
-                    currentUserId = data.userId;
-                    addMessage(privateMessagesContainer, `Authenticated as User ID: ${currentUserId}`, 'received');
-                    break;
-                    
-                case 'private_message':
-                    // Received private message
-                    addMessage(
-                        privateMessagesContainer, 
-                        `From ${data.from.name}: ${data.content}`, 
-                        'received'
-                    );
-                    break;
-                    
-                case 'group_message':
-                    // Received group message
-                    addMessage(
-                        groupMessagesContainer, 
-                        `[Group: ${data.groupId}] ${data.from.name}: ${data.content}`, 
-                        'received'
-                    );
-                    break;
-                    
-                case 'group_joined':
-                    // Joined a group
-                    currentGroupId = data.groupId;
-                    sendGroupBtn.disabled = false;
-                    addMessage(groupMessagesContainer, `Joined group: ${data.groupId}`, 'received');
-                    break;
-                    
-                case 'group_left':
-                    // Left a group
-                    if (currentGroupId === data.groupId) {
-                        currentGroupId = null;
-                        sendGroupBtn.disabled = true;
-                    }
-                    addMessage(groupMessagesContainer, `Left group: ${data.groupId}`, 'received');
-                    break;
-                    
-                case 'error':
-                    // Error message
-                    addMessage(privateMessagesContainer, `Error: ${data.message}`, 'received');
-                    break;
-                    
-                default:
-                    // Unknown message type
-                    addMessage(privateMessagesContainer, `Unknown message: ${JSON.stringify(data)}`, 'received');
-            }
-        }
+        addLogEntry('Connecting to WebSocket...', 'info');
         
-        // Update connection status UI
-        function updateConnectionStatus(isConnected, message = null) {
-            if (isConnected) {
-                connectionStatus.textContent = 'Connected';
-                connectionStatus.className = 'status connected';
-                connectBtn.disabled = true;
-                disconnectBtn.disabled = false;
-                sendPrivateBtn.disabled = false;
-                joinGroupBtn.disabled = false;
-                leaveGroupBtn.disabled = false;
-            } else {
-                connectionStatus.textContent = message || 'Disconnected';
-                connectionStatus.className = 'status disconnected';
-                resetButtons();
-                currentUserId = null;
-                currentGroupId = null;
-            }
-        }
-        
-        // Disconnect from server
-        disconnectBtn.addEventListener('click', () => {
-            if (socket) {
-                socket.close();
-                socket = null;
-            }
+        // Socket events
+        socket.on('connect', () => {
+          addLogEntry('Connected to WebSocket server', 'success');
+          updateButtonStates(true);
         });
         
-        // Send private message
-        sendPrivateBtn.addEventListener('click', () => {
-            const recipientId = recipientIdInput.value;
-            const message = privateMessageInput.value;
-            
-            if (!recipientId || !message) {
-                alert('Please enter recipient ID and message');
-                return;
-            }
-            
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                const privateMessage = {
-                    type: 'private_message',
-                    to: recipientId,
-                    content: message
-                };
-                
-                socket.send(JSON.stringify(privateMessage));
-                
-                // Add sent message to UI
-                addMessage(privateMessagesContainer, `To ${recipientId}: ${message}`, 'sent');
-                
-                // Clear input
-                privateMessageInput.value = '';
-            } else {
-                alert('Not connected to server');
-            }
+        socket.on('disconnect', () => {
+          addLogEntry('Disconnected from WebSocket server', 'info');
+          updateButtonStates(false);
         });
         
-        // Join group
-        joinGroupBtn.addEventListener('click', () => {
-            const groupId = groupIdInput.value;
-            
-            if (!groupId) {
-                alert('Please enter group ID');
-                return;
-            }
-            
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({
-                    type: 'join_group',
-                    groupId: groupId
-                }));
-            } else {
-                alert('Not connected to server');
-            }
+        socket.on('connect_error', (error) => {
+          addLogEntry(`Connection error: ${error.message}`, 'error');
+          updateButtonStates(false);
         });
         
-        // Leave group
-        leaveGroupBtn.addEventListener('click', () => {
-            const groupId = groupIdInput.value;
-            
-            if (!groupId) {
-                alert('Please enter group ID');
-                return;
-            }
-            
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({
-                    type: 'leave_group',
-                    groupId: groupId
-                }));
-            } else {
-                alert('Not connected to server');
-            }
+        socket.on('message', (data) => {
+          if (data.type === 'auth_success') {
+            userId = data.userId;
+            addLogEntry(`Authentication successful! Your user ID: ${data.userId} (${data.name})`, 'success');
+          } else if (data.type === 'private_message') {
+            addLogEntry(`Private message from ${data.from.name}: ${data.content}`, 'message');
+          } else if (data.type === 'group_message') {
+            addLogEntry(`Group message in ${data.groupId} from ${data.from.name}: ${data.content}`, 'message');
+          } else if (data.type === 'group_joined') {
+            addLogEntry(`Joined group: ${data.groupId}`, 'success');
+          } else if (data.type === 'group_left') {
+            addLogEntry(`Left group: ${data.groupId}`, 'info');
+          } else if (data.type === 'error') {
+            addLogEntry(`Error: ${data.message}`, 'error');
+          } else {
+            addLogEntry(`Received: ${JSON.stringify(data)}`, 'info');
+          }
         });
         
-        // Send group message
-        sendGroupBtn.addEventListener('click', () => {
-            const groupId = groupIdInput.value;
-            const message = groupMessageInput.value;
-            
-            if (!groupId || !message) {
-                alert('Please enter group ID and message');
-                return;
-            }
-            
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                const groupMessage = {
-                    type: 'group_message',
-                    groupId: groupId,
-                    content: message
-                };
-                
-                socket.send(JSON.stringify(groupMessage));
-                
-                // Add sent message to UI
-                addMessage(groupMessagesContainer, `[Group: ${groupId}] You: ${message}`, 'sent');
-                
-                // Clear input
-                groupMessageInput.value = '';
-            } else {
-                alert('Not connected to server');
-            }
-        });
-        
-        // Helper function to add message to container
-        function addMessage(container, text, type) {
-            const messageElement = document.createElement('div');
-            messageElement.className = `message ${type}`;
-            messageElement.textContent = text;
-            container.appendChild(messageElement);
-            container.scrollTop = container.scrollHeight;
-        }
-        
-        // Reset buttons to initial state
-        function resetButtons() {
-            connectBtn.disabled = false;
-            disconnectBtn.disabled = true;
-            sendPrivateBtn.disabled = true;
-            joinGroupBtn.disabled = true;
-            leaveGroupBtn.disabled = true;
-            sendGroupBtn.disabled = true;
-        }
-    </script>
+      } catch (error) {
+        addLogEntry(`Error initializing socket: ${error.message}`, 'error');
+      }
+    });
+    
+    // Disconnect from WebSocket
+    disconnectBtn.addEventListener('click', () => {
+      if (socket) {
+        socket.disconnect();
+        addLogEntry('Manually disconnected from WebSocket server', 'info');
+        updateButtonStates(false);
+      }
+    });
+    
+    // Send private message
+    sendPrivateBtn.addEventListener('click', () => {
+      const recipientId = document.getElementById('recipientId').value.trim();
+      const content = document.getElementById('privateMessage').value.trim();
+      
+      if (!recipientId || !content) {
+        addLogEntry('Please enter recipient ID and message content', 'error');
+        return;
+      }
+      
+      socket.emit('private_message', { to: recipientId, content });
+      addLogEntry(`Private message sent to ${recipientId}: ${content}`, 'info');
+    });
+    
+    // Join group
+    joinGroupBtn.addEventListener('click', () => {
+      const groupId = document.getElementById('groupId').value.trim();
+      
+      if (!groupId) {
+        addLogEntry('Please enter a group ID', 'error');
+        return;
+      }
+      
+      socket.emit('join_group', groupId);
+      document.getElementById('messageGroupId').value = groupId;
+      addLogEntry(`Joining group: ${groupId}`, 'info');
+    });
+    
+    // Leave group
+    leaveGroupBtn.addEventListener('click', () => {
+      const groupId = document.getElementById('groupId').value.trim();
+      
+      if (!groupId) {
+        addLogEntry('Please enter a group ID', 'error');
+        return;
+      }
+      
+      socket.emit('leave_group', groupId);
+      addLogEntry(`Leaving group: ${groupId}`, 'info');
+    });
+    
+    // Send group message
+    sendGroupBtn.addEventListener('click', () => {
+      const groupId = document.getElementById('messageGroupId').value.trim();
+      const content = document.getElementById('groupMessage').value.trim();
+      
+      if (!groupId || !content) {
+        addLogEntry('Please enter group ID and message content', 'error');
+        return;
+      }
+      
+      socket.emit('group_message', { groupId, content });
+      addLogEntry(`Group message sent to ${groupId}: ${content}`, 'info');
+    });
+    
+    // Helper functions
+    function updateButtonStates(connected) {
+      connectBtn.disabled = connected;
+      disconnectBtn.disabled = !connected;
+      sendPrivateBtn.disabled = !connected;
+      joinGroupBtn.disabled = !connected;
+      leaveGroupBtn.disabled = !connected;
+      sendGroupBtn.disabled = !connected;
+    }
+    
+    function addLogEntry(message, type = 'info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+  </script>
 </body>
 </html>
