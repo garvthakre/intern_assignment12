@@ -57,6 +57,10 @@
         button:hover {
             background-color: #45a049;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         .input-group {
             display: flex;
             margin-bottom: 10px;
@@ -156,67 +160,45 @@
             const token = authTokenInput.value;
             
             try {
-                socket = new WebSocket(serverUrl);
+                // Construct the WebSocket URL with token as a query parameter
+                const wsUrl = token ? `${serverUrl}?token=${token}` : serverUrl;
+                
+                socket = new WebSocket(wsUrl);
                 
                 // Connection opened
-                socket.addEventListener('open', (event) => {
-                    // Send authentication
+                socket.addEventListener('open', () => {
+                    // Send authentication message
                     socket.send(JSON.stringify({
                         type: 'authenticate',
                         token: token
                     }));
                     
                     // Update UI
-                    connectionStatus.textContent = 'Connected';
-                    connectionStatus.className = 'status connected';
-                    connectBtn.disabled = true;
-                    disconnectBtn.disabled = false;
-                    sendPrivateBtn.disabled = false;
-                    joinGroupBtn.disabled = false;
-                    leaveGroupBtn.disabled = false;
+                    updateConnectionStatus(true);
                 });
                 
                 // Listen for messages
                 socket.addEventListener('message', (event) => {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.type === 'auth_success') {
-                        // Authentication successful
-                        currentUserId = data.userId;
-                        addMessage(privateMessagesContainer, `Authenticated as User ID: ${currentUserId}`, 'received');
-                    } else if (data.type === 'private_message') {
-                        // Received private message
-                        addMessage(
-                            privateMessagesContainer, 
-                            `From ${data.from.name}: ${data.content}`, 
-                            'received'
-                        );
-                    } else if (data.type === 'group_message') {
-                        // Received group message
-                        addMessage(
-                            groupMessagesContainer, 
-                            `[Group: ${data.groupId}] ${data.from.name}: ${data.content}`, 
-                            'received'
-                        );
-                    } else if (data.type === 'error') {
-                        // Error message
-                        alert(`Error: ${data.message}`);
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleServerMessage(data);
+                    } catch (error) {
+                        console.error('Error parsing message:', error);
+                        addMessage(privateMessagesContainer, `Error parsing message: ${error.message}`, 'received');
                     }
                 });
                 
                 // Connection closed
-                socket.addEventListener('close', (event) => {
-                    connectionStatus.textContent = 'Disconnected';
-                    connectionStatus.className = 'status disconnected';
-                    resetButtons();
+                socket.addEventListener('close', () => {
+                    updateConnectionStatus(false);
+                    addMessage(privateMessagesContainer, 'Connection closed', 'received');
                 });
                 
                 // Connection error
                 socket.addEventListener('error', (event) => {
-                    connectionStatus.textContent = 'Connection Error';
-                    connectionStatus.className = 'status disconnected';
-                    resetButtons();
                     console.error('WebSocket error:', event);
+                    updateConnectionStatus(false, 'Connection Error');
+                    addMessage(privateMessagesContainer, 'Connection error', 'received');
                 });
                 
             } catch (error) {
@@ -224,6 +206,81 @@
                 console.error('Connection error:', error);
             }
         });
+        
+        // Handle messages from server
+        function handleServerMessage(data) {
+            console.log('Received message:', data);
+            
+            switch (data.type) {
+                case 'auth_success':
+                    // Authentication successful
+                    currentUserId = data.userId;
+                    addMessage(privateMessagesContainer, `Authenticated as User ID: ${currentUserId}`, 'received');
+                    break;
+                    
+                case 'private_message':
+                    // Received private message
+                    addMessage(
+                        privateMessagesContainer, 
+                        `From ${data.from.name}: ${data.content}`, 
+                        'received'
+                    );
+                    break;
+                    
+                case 'group_message':
+                    // Received group message
+                    addMessage(
+                        groupMessagesContainer, 
+                        `[Group: ${data.groupId}] ${data.from.name}: ${data.content}`, 
+                        'received'
+                    );
+                    break;
+                    
+                case 'group_joined':
+                    // Joined a group
+                    currentGroupId = data.groupId;
+                    sendGroupBtn.disabled = false;
+                    addMessage(groupMessagesContainer, `Joined group: ${data.groupId}`, 'received');
+                    break;
+                    
+                case 'group_left':
+                    // Left a group
+                    if (currentGroupId === data.groupId) {
+                        currentGroupId = null;
+                        sendGroupBtn.disabled = true;
+                    }
+                    addMessage(groupMessagesContainer, `Left group: ${data.groupId}`, 'received');
+                    break;
+                    
+                case 'error':
+                    // Error message
+                    addMessage(privateMessagesContainer, `Error: ${data.message}`, 'received');
+                    break;
+                    
+                default:
+                    // Unknown message type
+                    addMessage(privateMessagesContainer, `Unknown message: ${JSON.stringify(data)}`, 'received');
+            }
+        }
+        
+        // Update connection status UI
+        function updateConnectionStatus(isConnected, message = null) {
+            if (isConnected) {
+                connectionStatus.textContent = 'Connected';
+                connectionStatus.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendPrivateBtn.disabled = false;
+                joinGroupBtn.disabled = false;
+                leaveGroupBtn.disabled = false;
+            } else {
+                connectionStatus.textContent = message || 'Disconnected';
+                connectionStatus.className = 'status disconnected';
+                resetButtons();
+                currentUserId = null;
+                currentGroupId = null;
+            }
+        }
         
         // Disconnect from server
         disconnectBtn.addEventListener('click', () => {
@@ -243,17 +300,23 @@
                 return;
             }
             
-            socket.send(JSON.stringify({
-                type: 'private_message',
-                to: recipientId,
-                content: message
-            }));
-            
-            // Add sent message to UI
-            addMessage(privateMessagesContainer, `To ${recipientId}: ${message}`, 'sent');
-            
-            // Clear input
-            privateMessageInput.value = '';
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const privateMessage = {
+                    type: 'private_message',
+                    to: recipientId,
+                    content: message
+                };
+                
+                socket.send(JSON.stringify(privateMessage));
+                
+                // Add sent message to UI
+                addMessage(privateMessagesContainer, `To ${recipientId}: ${message}`, 'sent');
+                
+                // Clear input
+                privateMessageInput.value = '';
+            } else {
+                alert('Not connected to server');
+            }
         });
         
         // Join group
@@ -265,14 +328,14 @@
                 return;
             }
             
-            socket.send(JSON.stringify({
-                type: 'join_group',
-                groupId: groupId
-            }));
-            
-            currentGroupId = groupId;
-            sendGroupBtn.disabled = false;
-            addMessage(groupMessagesContainer, `Joined group: ${groupId}`, 'received');
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'join_group',
+                    groupId: groupId
+                }));
+            } else {
+                alert('Not connected to server');
+            }
         });
         
         // Leave group
@@ -284,17 +347,14 @@
                 return;
             }
             
-            socket.send(JSON.stringify({
-                type: 'leave_group',
-                groupId: groupId
-            }));
-            
-            if (currentGroupId === groupId) {
-                currentGroupId = null;
-                sendGroupBtn.disabled = true;
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'leave_group',
+                    groupId: groupId
+                }));
+            } else {
+                alert('Not connected to server');
             }
-            
-            addMessage(groupMessagesContainer, `Left group: ${groupId}`, 'received');
         });
         
         // Send group message
@@ -307,17 +367,23 @@
                 return;
             }
             
-            socket.send(JSON.stringify({
-                type: 'group_message',
-                groupId: groupId,
-                content: message
-            }));
-            
-            // Add sent message to UI
-            addMessage(groupMessagesContainer, `[Group: ${groupId}] You: ${message}`, 'sent');
-            
-            // Clear input
-            groupMessageInput.value = '';
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const groupMessage = {
+                    type: 'group_message',
+                    groupId: groupId,
+                    content: message
+                };
+                
+                socket.send(JSON.stringify(groupMessage));
+                
+                // Add sent message to UI
+                addMessage(groupMessagesContainer, `[Group: ${groupId}] You: ${message}`, 'sent');
+                
+                // Clear input
+                groupMessageInput.value = '';
+            } else {
+                alert('Not connected to server');
+            }
         });
         
         // Helper function to add message to container
