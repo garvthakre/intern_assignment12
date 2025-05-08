@@ -23,6 +23,15 @@ dotenv.config();
 
 // Connect to MongoDB
 connectDB();
+// At the end of your server.js, after connectDB():
+(async () => {
+  try {
+    await seedAdmin();
+    console.log('Admin seeding completed successfully');
+  } catch (error) {
+    console.error('Admin seeding failed:', error);
+  }
+})();
 
 const app = express();
 
@@ -66,6 +75,10 @@ const server = http.createServer(app);
 // Initialize Socket.io
 initSocket(server);
 
+// Add to server.js
+app.get('/socket-test', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 // Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

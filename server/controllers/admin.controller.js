@@ -1,6 +1,7 @@
 import User from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
 import { generateVerificationToken, sendVerificationEmail } from '../services/email.service.js';
+import { logger } from '../services/logger.service.js';
 
 export const createAdmin = async (req, res) => {
   try {
@@ -30,8 +31,14 @@ export const createAdmin = async (req, res) => {
       verificationTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
     });
     
-    // Send verification email
-    await sendVerificationEmail(newAdmin);
+    // Try to send verification email, but don't fail if it doesn't work
+    try {
+      await sendVerificationEmail(newAdmin);
+      logger.info(`Verification email sent to new admin: ${email}`);
+    } catch (emailError) {
+      logger.error(`Failed to send verification email: ${emailError.message}`);
+      // Continue anyway - don't block admin creation
+    }
     
     // Don't return password in response
     const admin = newAdmin.toObject();
@@ -39,11 +46,11 @@ export const createAdmin = async (req, res) => {
     delete admin.emailVerificationToken;
     
     res.status(201).json({ 
-      msg: 'Admin created successfully. Verification email has been sent.', 
+      msg: 'Admin created successfully. Check logs for verification details.',
       admin 
     });
   } catch (error) {
-    console.error('Admin creation error:', error);
+    logger.error(`Admin creation error: ${error.message}`);
     res.status(500).json({ msg: 'Server error' });
   }
 };
